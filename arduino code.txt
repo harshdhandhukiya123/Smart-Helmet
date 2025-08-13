@@ -1,0 +1,72 @@
+#include <Wire.h>
+#include <MPU6050.h>
+
+#define TRIG_PIN 5
+#define ECHO_PIN 18
+#define LED_PIN 2
+#define BUTTON_PIN 15
+
+MPU6050 mpu;
+
+float thresholdDistance = 10.0; // cm
+bool accidentDetected = false;
+
+void setup() {
+  Serial.begin(115200);
+  
+  pinMode(TRIG_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+  pinMode(LED_PIN, OUTPUT);
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+
+  Wire.begin();
+  mpu.initialize();
+
+  Serial.println("System Ready");
+}
+
+void loop() {
+  float distance = getDistance();
+  checkAccident();
+
+  if (digitalRead(BUTTON_PIN) == LOW) {
+    Serial.println("Button Pressed");
+  }
+
+  if (distance < thresholdDistance) {
+    digitalWrite(LED_PIN, HIGH);
+  } else {
+    digitalWrite(LED_PIN, LOW);
+  }
+
+  delay(200);
+}
+
+float getDistance() {
+  digitalWrite(TRIG_PIN, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIG_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG_PIN, LOW);
+
+  long duration = pulseIn(ECHO_PIN, HIGH);
+  float distance = duration * 0.034 / 2;
+  Serial.print("Distance: ");
+  Serial.println(distance);
+  return distance;
+}
+
+void checkAccident() {
+  int16_t ax, ay, az;
+  mpu.getAcceleration(&ax, &ay, &az);
+  float acc = sqrt(ax * ax + ay * ay + az * az) / 16384.0;
+
+  if (acc > 3.0) {
+    if (!accidentDetected) {
+      accidentDetected = true;
+      Serial.println("Accident Detected!");
+    }
+  } else {
+    accidentDetected = false;
+  }
+}
